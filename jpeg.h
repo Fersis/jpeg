@@ -223,7 +223,7 @@ private:
 	vector<array2D> data_Cr{};
 
 	// final data, 3 tables, Y, Cb, Cr, use a vector to store 3 array2D
-	vector<vector<array2D>> MCU = vector<vector<array2D>>(4);
+	vector<array2D> MCU = vector<array2D>(3);
 
 
 	// anti quantization function
@@ -238,17 +238,22 @@ private:
 	vector<array2D> YCbCr_to_RGB(vector<array2D> MCU);
 
 	// divide the Cb and Cr 
-	vector<array2D> divide_matrix(array2D ar);
+	array2D divide_matrix(array2D ar);
 
 	// RGB values
-	vector<vector<array2D>> RGB{};
+	vector<array2D> RGB{};
 
 	// bmp file
 	ofstream fout;
 
 	void RGB_to_bmp(void);
 
+	// merge 4 matrices to 1 matrix
+	array2D merge_matrices(vector<array2D> vecar);
 
+	BYTE* process_sos_data();
+
+	BYTE* pf{};
 
 
 	// huffman table segment
@@ -437,6 +442,7 @@ vector<int> JPEG::RLE_to_org(vector<bitCode> bit_code)
 		{
 			org_data.push_back(0);
 		}
+
 		// store the non-zeros value
 		org_data.push_back(i->second);
 	}
@@ -649,75 +655,40 @@ JPEG::array2D JPEG::IDCT(array2D ar)
 }
 
 
-vector<JPEG::array2D> JPEG::divide_matrix(array2D ar)
+JPEG::array2D JPEG::divide_matrix(array2D ar)
 {
-	vector<array2D> vec_tmp{};
-	array2D tmp(8, vector<int>(8));
-	for (size_t i = 0, n = 0; i < 8; i += 2, n++)
+	array2D tmp(MCU_height, vector<int>(MCU_width));
+	for (size_t i = 0, n = 0; i < MCU_height; i += 2, n++)
 	{
-		for (size_t j = 0, m = 0; j < 8; j += 2, m++)
+		for (size_t j = 0, m = 0; j < MCU_width; j += 2, m++)
 		{
 			tmp[i][j] = tmp[i + 1][j] = tmp[i][j + 1] = tmp[i + 1][j + 1]
 				= ar[n][m];
 		}
 	}
-	vec_tmp.push_back(tmp);
 
-	for (size_t i = 0, n = 0; i < 8; i += 2, n++)
+	// show tmp
+	cout << "after expand: " << endl;
+	for (size_t i = 0; i < MCU_height; i++)
 	{
-		for (size_t j = 0, m = 4; j < 8; j += 2, m++)
+		for (size_t j = 0; j < MCU_width; j++)
 		{
-			tmp[i][j] = tmp[i + 1][j] = tmp[i][j + 1] = tmp[i + 1][j + 1]
-				= ar[n][m];
-		}
-	}
-	vec_tmp.push_back(tmp);
-
-	for (size_t i = 0, n = 4; i < 8; i += 2, n++)
-	{
-		for (size_t j = 0, m = 0; j < 8; j += 2, m++)
-		{
-			tmp[i][j] = tmp[i + 1][j] = tmp[i][j + 1] = tmp[i + 1][j + 1]
-				= ar[n][m];
-		}
-	}
-	vec_tmp.push_back(tmp);
-
-	for (size_t i = 0, n = 4; i < 8; i += 2, n++)
-	{
-		for (size_t j = 0, m = 4; j < 8; j += 2, m++)
-		{
-			tmp[i][j] = tmp[i + 1][j] = tmp[i][j + 1] = tmp[i + 1][j + 1]
-				= ar[n][m];
-		}
-	}
-	vec_tmp.push_back(tmp);
-
-	// show vec_tmp
-	for (size_t s = 0; s < vec_tmp.size(); s++)
-	{
-		cout << s << " table" << endl;
-		for (size_t i = 0; i < 8; i++)
-		{
-			for (size_t j = 0; j < 8; j++)
-			{
-				cout << setw(4) << vec_tmp[s][i][j] << " ";
-			}
-			cout << endl;
+			cout << setw(4) << tmp[i][j] << " ";
 		}
 		cout << endl;
 	}
+	cout << endl;
 
-	return vec_tmp;
+	return tmp;
 }
 
 
 vector<JPEG::array2D> JPEG::YCbCr_to_RGB(vector<array2D> MCU)
 {
-	vector<JPEG::array2D> RGB(3, array2D(8, vector<int>(8)));
-	for (size_t i = 0; i < 8; i++)
+	vector<JPEG::array2D> RGB(3, array2D(MCU_height, vector<int>(MCU_width)));
+	for (size_t i = 0; i < MCU_height; i++)
 	{
-		for (size_t j = 0; j < 8; j++)
+		for (size_t j = 0; j < MCU_width; j++)
 		{
 			RGB[0][i][j] = MCU[0][i][j] + 1.4802 * MCU[2][i][j] + 128;
 			RGB[1][i][j] = MCU[0][i][j] - 0.3441363 * MCU[1][i][j] - 0.71413636 * MCU[2][i][j] + 128;
@@ -739,9 +710,9 @@ vector<JPEG::array2D> JPEG::YCbCr_to_RGB(vector<array2D> MCU)
 	for (size_t s = 0; s < 3; s++)
 	{
 		cout << s << " RGB" << endl;
-		for (size_t i = 0; i < 8; i++)
+		for (size_t i = 0; i < MCU_height; i++)
 		{
-			for (size_t j = 0; j < 8; j++)
+			for (size_t j = 0; j < MCU_width; j++)
 			{
 				cout << setw(3) << RGB[s][i][j] << " ";
 			}
@@ -755,23 +726,24 @@ vector<JPEG::array2D> JPEG::YCbCr_to_RGB(vector<array2D> MCU)
 
 void JPEG::RGB_to_bmp(void)
 {
-	ifstream fin1;
-	ofstream fout1;
+#define WIDTHBYTES(i)    ((i + 31) / 32 * 4)
+
 	BITMAPFILEHEADER   bf;
 	BITMAPINFOHEADER   bi;
 	DWORD              NumColors;
 	DWORD              LineBytes{};
-	DWORD              ImgWidth = 8, ImgHeight = 8;
+	DWORD              ImgWidth = resolution_width, ImgHeight = resolution_height;
 	DWORD              ImgSize{};
 
 
-	string RGB_values_file = "test.dat";
-	fin1.open(RGB_values_file.c_str(), ios_base::binary);
-	if (!fin1.is_open())
-	{
-		cerr << "File doesn't exit" << endl;
-		exit(EXIT_FAILURE);
-	}
+	//string RGB_values_file = "sunflower.dat";
+	//fin1.open(RGB_values_file.c_str(), ios_base::binary);
+	//if (!fin1.is_open())
+	//{
+	//	cerr << "File doesn't exit" << endl;
+	//	exit(EXIT_FAILURE);
+	//}
+
 
 
 	bi.biSize = (DWORD)sizeof(BITMAPINFOHEADER);
@@ -785,35 +757,82 @@ void JPEG::RGB_to_bmp(void)
 	NumColors = 0;
 	printf("bi.biWidth is %ld\n", bi.biWidth);
 	printf("bi.biBitCount is %ld\n", bi.biBitCount);
-	//LineBytes = (DWORD)WIDTHBYTES(bi.biWidth * bi.biBitCount);
-	//printf("LineBytes is %ld\n", LineBytes);
+	LineBytes = (DWORD)WIDTHBYTES(bi.biWidth * bi.biBitCount);
+	printf("LineBytes is %ld\n", LineBytes);
 	ImgSize = (DWORD)LineBytes * bi.biHeight;//???????
 	printf("size is %ld\n", ImgSize);
 	bf.bfType = 0x4d42;
-	bf.bfSize = sizeof(BITMAPFILEHEADER) + sizeof(BITMAPINFOHEADER) + NumColors * sizeof(RGBQUAD) + ImgSize;
-	bf.bfOffBits = 54;//(DWORD)(NumColors*sizeof(RGBQUAD)+sizeof(BITMAPFILEHEADER)+sizeof(BITMAPINFOHEADER));
+	bf.bfSize = sizeof(BITMAPFILEHEADER) + sizeof(BITMAPINFOHEADER)
+		+ NumColors * sizeof(RGBQUAD) + ImgSize;
+	bf.bfOffBits = 54;
+	//(DWORD)(NumColors*sizeof(RGBQUAD)+sizeof(BITMAPFILEHEADER)+sizeof(BITMAPINFOHEADER));
 
-	fout1.open("test.bmp", ios_base::binary);
-	fout1.write((LPSTR)&bf, sizeof(BITMAPFILEHEADER));
-	fout1.write((LPSTR)&bi, sizeof(BITMAPINFOHEADER));
+	fout.open("lake.bmp", ios_base::binary);
+	fout.write((LPSTR)&bf, sizeof(BITMAPFILEHEADER));
+	fout.write((LPSTR)&bi, sizeof(BITMAPINFOHEADER));
 
 	//fin1.seekg(192, ios_base::cur);
-	char c{};
 
-	for (int s = 0; s < 3; s++)
+	for (int i = ImgHeight - 1; i >= 0; i--)
 	{
-		for (int i = 0; i < 8; i++)
+		for (int j = 0; j <  ImgWidth; j++)
 		{
-			for (int j = 0; j < 8; j++)
+			for (int s = 2; s >= 0; s--)
 			{
-				fin1.read(&c, 1);
-				fout1.write(&c, 1);
+				fout.write((char*)&RGB[s][i][j], 1);
 			}
 		}
 	}
 
 }
 
+
+JPEG::array2D JPEG::merge_matrices(vector<array2D> vecar)
+{
+	array2D ar{};
+	vector<int> ar_tmp{};
+	for (size_t v = 0; v < ver_samp_factor; v++)
+	{
+		for (size_t i = 0; i < 8; i++)
+		{
+			for (size_t h = 0; h < hor_samp_factor; h++)
+			{
+				for (size_t j = 0; j < 8; j++)
+				{
+					ar_tmp.push_back(vecar[v * hor_samp_factor + h][i][j]);
+				}
+			}
+			ar.push_back(ar_tmp);
+			ar_tmp = {};
+		}
+	}
+
+	cout << "after merge: " << endl;
+	for (size_t i = 0; i < hor_samp_factor * 8; i++)
+	{
+		for (size_t j = 0; j < ver_samp_factor * 8; j++)
+		{
+			cout << setw(3) << ar[i][j] << " ";
+		}
+		cout << endl;
+	}
+	return array2D(ar);
+}
+
+
+BYTE* JPEG::process_sos_data()
+{
+	auto position_start = fin.tellg();
+	fin.seekg(-2, ios_base::end);
+	auto position_end = fin.tellg();
+	int size = position_end - position_start;
+	pf = new BYTE(size);
+
+	fin.seekg(-size, ios_base::cur);
+	fin.read((char*)pf, size);
+
+	return pf;
+}
 
 // main segment parsing function
 int JPEG::DHT()
@@ -961,16 +980,20 @@ int JPEG::SOS()
 	fin.get();
 	fin.get();
 
+	//process_sos_data();
+
 	parseData();
 
-	vector<array2D> Cb{};
-	vector<array2D> Cr{};
+	array2D Y{};
+	array2D Cb{};
+	array2D Cr{};
 
 	// transfer bit_code into original data
 	// Y
 	for (auto i = 0; i < bit_code_Y.size(); i++)
 	{
 		org_data_Y.push_back(RLE_to_org(bit_code_Y[i]));
+
 		// DC coefficient differential coding
 		if (i > 0)
 		{
@@ -978,7 +1001,10 @@ int JPEG::SOS()
 		}
 		org_data_zz_Y.push_back(array_to_matrix(q_zig_zag(q_quan(org_data_Y[i], 0x00))));
 		data_Y.push_back(IDCT(org_data_zz_Y[i]));
+
 	}
+	Y = merge_matrices(data_Y);
+
 	// Cb
 	for (auto i = 0; i < bit_code_Cb.size(); i++)
 	{
@@ -995,32 +1021,27 @@ int JPEG::SOS()
 		data_Cr.push_back(IDCT(org_data_zz_Cr[i]));
 		Cr = divide_matrix(data_Cr[i]);
 	}
-
-	for (size_t i = 0; i < 4; i++)
-	{
-		MCU[i] = { data_Y[i], Cb[i], Cr[i] };
-		RGB.push_back(YCbCr_to_RGB(MCU[i]));
-	}
-
-	fout.open("test.dat", ios_base::binary);
+	MCU = { Y, Cb, Cr };
+	RGB = YCbCr_to_RGB(MCU);
+	//fout.open("sunflower.dat", ios_base::binary);
 
 	//MCU
-	for (int i = 0; i < RGB.size(); i++)
-	{
-		// one matrix
-		// from bottom to up, from left to right
-		for (int m = 7; m >= 0; m--)
-		{
-			for (int n = 0; n < 8; n++)
-			{
-				// B, G, R
-				for (int j = 2; j >= 0; j--)
-				{
-					fout.write((char*)&RGB[i][j][m][n], sizeof(char));
-				}
-			}
-		}
-	}
+	//for (int i = 0; i < RGB.size(); i++)
+	//{
+	//	// one matrix
+	//	// from bottom to up, from left to right
+	//	for (int m = 7; m >= 0; m--)
+	//	{
+	//		for (int n = 0; n < 8; n++)
+	//		{
+	//			// B, G, R
+	//			for (int j = 2; j >= 0; j--)
+	//			{
+	//				fout.write((char*)&RGB[i][j][m][n], sizeof(char));
+	//			}
+	//		}
+	//	}
+	//}
 
 
 	// whole bmp
@@ -1065,7 +1086,6 @@ int JPEG::SOS()
 	//	}
 	//}
 
-	fout.close();
 	RGB_to_bmp();
 
 	return JPEG_SEG_OK;

@@ -1,34 +1,45 @@
 ﻿  jpeg.cpp
 E:\C++\jpeg\jpeg\jpeg\jpeg.h(3,1): warning C4103: alignment changed after including header, may be due to missing #pragma pack(pop)
-E:\C++\jpeg\jpeg\jpeg\jpeg.h(323,23): warning C4018: '<': signed/unsigned mismatch
-E:\C++\jpeg\jpeg\jpeg\jpeg.h(333,24): warning C4018: '<': signed/unsigned mismatch
-E:\C++\jpeg\jpeg\jpeg\jpeg.h(563,21): warning C4018: '<': signed/unsigned mismatch
-E:\C++\jpeg\jpeg\jpeg\jpeg.h(639,21): warning C4244: 'argument': conversion from 'double' to 'const _Ty', possible loss of data
+E:\C++\jpeg\jpeg\jpeg\jpeg.h(328,23): warning C4018: '<': signed/unsigned mismatch
+E:\C++\jpeg\jpeg\jpeg\jpeg.h(338,24): warning C4018: '<': signed/unsigned mismatch
+E:\C++\jpeg\jpeg\jpeg\jpeg.h(569,21): warning C4018: '<': signed/unsigned mismatch
+E:\C++\jpeg\jpeg\jpeg\jpeg.h(645,21): warning C4244: 'argument': conversion from 'double' to 'const _Ty', possible loss of data
           with
           [
               _Ty=int
           ]
-E:\C++\jpeg\jpeg\jpeg\jpeg.h(722,56): warning C4244: '=': conversion from 'double' to '_Ty', possible loss of data
+E:\C++\jpeg\jpeg\jpeg\jpeg.h(661,30): warning C4018: '<': signed/unsigned mismatch
+E:\C++\jpeg\jpeg\jpeg\jpeg.h(663,31): warning C4018: '<': signed/unsigned mismatch
+E:\C++\jpeg\jpeg\jpeg\jpeg.h(672,23): warning C4018: '<': signed/unsigned mismatch
+E:\C++\jpeg\jpeg\jpeg\jpeg.h(674,24): warning C4018: '<': signed/unsigned mismatch
+E:\C++\jpeg\jpeg\jpeg\jpeg.h(689,23): warning C4018: '<': signed/unsigned mismatch
+E:\C++\jpeg\jpeg\jpeg\jpeg.h(691,24): warning C4018: '<': signed/unsigned mismatch
+E:\C++\jpeg\jpeg\jpeg\jpeg.h(693,56): warning C4244: '=': conversion from 'double' to '_Ty', possible loss of data
           with
           [
               _Ty=int
           ]
-E:\C++\jpeg\jpeg\jpeg\jpeg.h(723,87): warning C4244: '=': conversion from 'double' to '_Ty', possible loss of data
+E:\C++\jpeg\jpeg\jpeg\jpeg.h(694,87): warning C4244: '=': conversion from 'double' to '_Ty', possible loss of data
           with
           [
               _Ty=int
           ]
-E:\C++\jpeg\jpeg\jpeg\jpeg.h(724,55): warning C4244: '=': conversion from 'double' to '_Ty', possible loss of data
+E:\C++\jpeg\jpeg\jpeg\jpeg.h(695,55): warning C4244: '=': conversion from 'double' to '_Ty', possible loss of data
           with
           [
               _Ty=int
           ]
-E:\C++\jpeg\jpeg\jpeg\jpeg.h(971,21): warning C4018: '<': signed/unsigned mismatch
-E:\C++\jpeg\jpeg\jpeg\jpeg.h(983,21): warning C4018: '<': signed/unsigned mismatch
-E:\C++\jpeg\jpeg\jpeg\jpeg.h(991,21): warning C4018: '<': signed/unsigned mismatch
-E:\C++\jpeg\jpeg\jpeg\jpeg.h(1008,20): warning C4018: '<': signed/unsigned mismatch
+E:\C++\jpeg\jpeg\jpeg\jpeg.h(713,24): warning C4018: '<': signed/unsigned mismatch
+E:\C++\jpeg\jpeg\jpeg\jpeg.h(715,25): warning C4018: '<': signed/unsigned mismatch
+E:\C++\jpeg\jpeg\jpeg\jpeg.h(778,21): warning C4018: '<': signed/unsigned mismatch
+E:\C++\jpeg\jpeg\jpeg\jpeg.h(794,23): warning C4018: '<': signed/unsigned mismatch
+E:\C++\jpeg\jpeg\jpeg\jpeg.h(798,25): warning C4018: '<': signed/unsigned mismatch
+E:\C++\jpeg\jpeg\jpeg\jpeg.h(811,23): warning C4018: '<': signed/unsigned mismatch
+E:\C++\jpeg\jpeg\jpeg\jpeg.h(813,24): warning C4018: '<': signed/unsigned mismatch
+E:\C++\jpeg\jpeg\jpeg\jpeg.h(828,11): warning C4244: 'initializing': conversion from 'std::streamoff' to 'int', possible loss of data
+E:\C++\jpeg\jpeg\jpeg\jpeg.h(993,21): warning C4018: '<': signed/unsigned mismatch
+E:\C++\jpeg\jpeg\jpeg\jpeg.h(1009,21): warning C4018: '<': signed/unsigned mismatch
+E:\C++\jpeg\jpeg\jpeg\jpeg.h(1017,21): warning C4018: '<': signed/unsigned mismatch
 E:\C++\jpeg\jpeg\jpeg\jpeg.cpp(1,1): warning C4103: alignment changed after including header, may be due to missing #pragma pack(pop)
-E:\C++\jpeg\jpeg\jpeg\jpeg.cpp(7,23): warning C4018: '<': signed/unsigned mismatch
-E:\C++\jpeg\jpeg\jpeg\jpeg.cpp(17,24): warning C4018: '<': signed/unsigned mismatch
-E:\C++\jpeg\jpeg\jpeg\jpeg.h(427): warning C4715: 'JPEG::findHMCode': not all control paths return a value
+E:\C++\jpeg\jpeg\jpeg\jpeg.h(432): warning C4715: 'JPEG::findHMCode': not all control paths return a value
   jpeg.vcxproj -> E:\C++\jpeg\jpeg\Debug\jpeg.exe

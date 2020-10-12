@@ -92,6 +92,8 @@ private:
 	// Define file stream
 	ifstream fin;
 
+	string filename_;
+
 	// Read word inline function
 	WORD readWord() { return ((fin.get() << 8) | fin.get()); }
 
@@ -153,10 +155,6 @@ private:
 	vector<vector<bitCode>> bit_code_Cb{};
 	vector<vector<bitCode>> bit_code_Cr{};
 
-	// original data vector
-	vector<vector<int>> org_data_Y{};
-	vector<vector<int>> org_data_Cb{};
-	vector<vector<int>> org_data_Cr{};
 
 
 	// read bit inline function
@@ -212,18 +210,6 @@ private:
 	// turn the 64 1D array into 8*8 2D array
 	array2D array_to_matrix(vector<int> array);
 
-	// data table after zigzag
-	vector<array2D> org_data_zz_Y{};
-	vector<array2D> org_data_zz_Cb{};
-	vector<array2D> org_data_zz_Cr{};
-
-	// data table after IDCT
-	vector<array2D> data_Y{};
-	vector<array2D> data_Cb{};
-	vector<array2D> data_Cr{};
-
-	// final data, 3 tables, Y, Cb, Cr, use a vector to store 3 array2D
-	vector<array2D> MCU = vector<array2D>(3);
 
 
 	// anti quantization function
@@ -240,8 +226,11 @@ private:
 	// divide the Cb and Cr 
 	array2D divide_matrix(array2D ar);
 
-	// RGB values
-	vector<array2D> RGB{};
+
+	vector<vector<array2D>> RGB_total;
+	vector<array2D> RGB_total_after_merge;
+
+	vector<array2D> merge_RGB(vector<vector<array2D>> RGB_total);
 
 	// bmp file
 	ofstream fout;
@@ -251,9 +240,17 @@ private:
 	// merge 4 matrices to 1 matrix
 	array2D merge_matrices(vector<array2D> vecar);
 
-	BYTE* process_sos_data();
 
 	BYTE* pf{};
+
+	int MCU_number_width{};
+	int MCU_number_height{};
+
+	int get_MCU_number();
+
+	int Y_dc{};
+	int Cb_dc{};
+	int Cr_dc{};
 
 
 	// huffman table segment
@@ -283,6 +280,14 @@ WORD JPEG::readOneBit()
 	if (byte_mask == 0)
 	{
 		byte_tmp = fin.get();
+		if (byte_tmp == 0xFF)
+		{
+			BYTE tmp = fin.get();
+			if (tmp != 0x00)
+			{
+				fin.seekg(-1, ios_base::cur);
+			}
+		}
 		byte_mask = 0x80;
 	}
 	bool is_1 = byte_tmp & byte_mask;
@@ -306,6 +311,14 @@ WORD JPEG::readNBits(unsigned int n)
 		if (byte_mask == 0)
 		{
 			byte_tmp = fin.get();
+			if (byte_tmp == 0xFF)
+			{
+				BYTE tmp = fin.get();
+				if (tmp != 0x00)
+				{
+					fin.seekg(-1, ios_base::cur);
+				}
+			}
 			byte_mask = 0x80;
 		}
 
@@ -399,12 +412,12 @@ int JPEG::findHMCode(BYTE HT_id, vector<bitCode>& bit_code_group)
 					// construct a bitCode pair for storing
 					bitCode(zero_length, bit_code_value)
 				);
-				cout << "           " << setfill('0')
-					<< setw(4) << guessed_code << "             "
-					<< setw(2) << int(iter->second) << "            "
-					<< setw(3) << bit_code << "          "
-					<< setw(4) << dec << setfill(' ') << bit_code_value << hex
-					<< endl;
+				//cout << "           " << setfill('0')
+				//	<< setw(4) << guessed_code << "             "
+				//	<< setw(2) << int(iter->second) << "            "
+				//	<< setw(3) << bit_code << "          "
+				//	<< setw(4) << dec << setfill(' ') << bit_code_value << hex
+				//	<< endl;
 				if (zero_length == 0 and bit_code_length == 0)
 				{
 					return END_OF_TABLE;
@@ -460,14 +473,14 @@ vector<int> JPEG::RLE_to_org(vector<bitCode> bit_code)
 		cerr << "Unexpected bit code vector" << endl;
 	}
 
-	cout << "Original data: " << endl;
+	//cout << "Original data: " << endl;
 
-	cout << dec;
-	for (size_t i = 0; i < org_data.size(); i++)
-	{
-		cout << org_data[i] << " ";
-	}
-	cout << endl;
+	//cout << dec;
+	//for (size_t i = 0; i < org_data.size(); i++)
+	//{
+	//	cout << org_data[i] << " ";
+	//}
+	//cout << endl;
 
 	return vector<int>(org_data);
 }
@@ -480,9 +493,9 @@ int JPEG::parseData()
 	// extract Y bitcode
 	for (size_t i = 0; i < Y.number; i++)
 	{
-		cout << setfill(' ');
-		cout << "Y" << i + 1 << " bitcode:" << endl;
-		cout << setw(15) << "huffman code" << setw(15) << "huffman value" << setw(15) << "bit code" << endl;
+		//cout << setfill(' ');
+		//cout << "Y" << i + 1 << " bitcode:" << endl;
+		//cout << setw(15) << "huffman code" << setw(15) << "huffman value" << setw(15) << "bit code" << endl;
 
 		// find the Y DC portion using HT00
 		findHMCode(0x00, bit_code_temp);
@@ -501,16 +514,16 @@ int JPEG::parseData()
 		}
 
 		bit_code_Y.push_back(bit_code_temp);
-		cout << endl;
+		//cout << endl;
 		bit_code_temp = {};
 	}
 
 	// extract Cb bitcode
 	for (size_t i = 0; i < Cb.number; i++)
 	{
-		cout << setfill(' ');
-		cout << "Cb" << i + 1 << " bitcode:" << endl;
-		cout << setw(15) << "huffman code" << setw(15) << "huffman value" << setw(15) << "bit code" << endl;
+		//cout << setfill(' ');
+		//cout << "Cb" << i + 1 << " bitcode:" << endl;
+		//cout << setw(15) << "huffman code" << setw(15) << "huffman value" << setw(15) << "bit code" << endl;
 
 		// find the Cb DC portion using HT01
 		findHMCode(0x01, bit_code_temp);
@@ -528,16 +541,16 @@ int JPEG::parseData()
 			}
 		}
 		bit_code_Cb.push_back(bit_code_temp);
-		cout << endl;
+		//cout << endl;
 		bit_code_temp = {};
 	}
 
 	// extract Cr bitcode
 	for (size_t i = 0; i < Cr.number; i++)
 	{
-		cout << setfill(' ');
-		cout << "Cr" << i + 1 << " bitcode:" << endl;
-		cout << setw(15) << "huffman code" << setw(15) << "huffman value" << setw(15) << "bit code" << endl;
+		//cout << setfill(' ');
+		//cout << "Cr" << i + 1 << " bitcode:" << endl;
+		//cout << setw(15) << "huffman code" << setw(15) << "huffman value" << setw(15) << "bit code" << endl;
 
 		// find the Cr DC portion using HT01
 		findHMCode(0x01, bit_code_temp);
@@ -555,7 +568,7 @@ int JPEG::parseData()
 			}
 		}
 		bit_code_Cr.push_back(bit_code_temp);
-		cout << endl;
+		//cout << endl;
 		bit_code_temp = {};
 	}
 
@@ -570,13 +583,13 @@ vector<int> JPEG::q_zig_zag(vector<int> array)
 	{
 		tmp[zigzag[i]] = array[i];
 	}
-	cout << "After q zig zag" << endl;
-	for (size_t i = 0; i < tmp.size(); i++)
-	{
-		cout << tmp[i] << " ";
-	}
-	cout << endl;
-	cout << endl;
+	//cout << "After q zig zag" << endl;
+	//for (size_t i = 0; i < tmp.size(); i++)
+	//{
+	//	cout << tmp[i] << " ";
+	//}
+	//cout << endl;
+	//cout << endl;
 	return tmp;
 }
 
@@ -590,13 +603,13 @@ JPEG::array2D JPEG::array_to_matrix(vector<int> array)
 		for (size_t j = 0; j < 8; j++)
 		{
 			tmp.push_back(array[8 * i + j]);
-			cout << setw(4) << tmp[j] << " ";
+			//cout << setw(4) << tmp[j] << " ";
 		}
 		matrix.push_back(tmp);
 		tmp = {};
-		cout << endl;
+		//cout << endl;
 	}
-	cout << endl;
+	//cout << endl;
 	return array2D(matrix);
 }
 
@@ -604,13 +617,13 @@ JPEG::array2D JPEG::array_to_matrix(vector<int> array)
 vector<int> JPEG::q_quan(vector<int> array, BYTE table_id)
 {
 	vector<int> tmp(64);
-	cout << "After anti quantization: " << endl;
+	//cout << "After anti quantization: " << endl;
 	for (size_t i = 0; i < 64; i++)
 	{
 		tmp[i] = array[i] * quan_table[table_id][i];
-		cout << tmp[i] << " ";
+		//cout << tmp[i] << " ";
 	}
-	cout << endl;
+	//cout << endl;
 	return vector<int>(tmp);
 }
 
@@ -627,8 +640,8 @@ JPEG::array2D JPEG::IDCT(array2D ar)
 	vector<int> ar_tmp{};
 	double tmp{};
 
-	cout << "After IDCT: " << endl;
-	cout << setprecision(1) << fixed;
+	//cout << "After IDCT: " << endl;
+	//cout << setprecision(1) << fixed;
 	for (short x = 0; x < 8; x++)
 	{
 		for (short y = 0; y < 8; y++)
@@ -643,14 +656,14 @@ JPEG::array2D JPEG::IDCT(array2D ar)
 				}
 			}
 			ar_tmp.push_back(tmp);
-			cout << setw(7) << tmp << " ";
+			//cout << setw(7) << tmp << " ";
 			tmp = 0;
 		}
 		ar_.push_back(ar_tmp);
 		ar_tmp = {};
-		cout << endl;
+		//cout << endl;
 	}
-	cout << endl;
+	//cout << endl;
 	return ar_;
 }
 
@@ -668,16 +681,16 @@ JPEG::array2D JPEG::divide_matrix(array2D ar)
 	}
 
 	// show tmp
-	cout << "after expand: " << endl;
-	for (size_t i = 0; i < MCU_height; i++)
-	{
-		for (size_t j = 0; j < MCU_width; j++)
-		{
-			cout << setw(4) << tmp[i][j] << " ";
-		}
-		cout << endl;
-	}
-	cout << endl;
+	//cout << "after expand: " << endl;
+	//for (size_t i = 0; i < MCU_height; i++)
+	//{
+	//	for (size_t j = 0; j < MCU_width; j++)
+	//	{
+	//		cout << setw(4) << tmp[i][j] << " ";
+	//	}
+	//	cout << endl;
+	//}
+	//cout << endl;
 
 	return tmp;
 }
@@ -707,19 +720,19 @@ vector<JPEG::array2D> JPEG::YCbCr_to_RGB(vector<array2D> MCU)
 		}
 	}
 
-	for (size_t s = 0; s < 3; s++)
-	{
-		cout << s << " RGB" << endl;
-		for (size_t i = 0; i < MCU_height; i++)
-		{
-			for (size_t j = 0; j < MCU_width; j++)
-			{
-				cout << setw(3) << RGB[s][i][j] << " ";
-			}
-			cout << endl;
-		}
-		cout << endl;
-	}
+	//for (size_t s = 0; s < 3; s++)
+	//{
+	//	cout << s << " RGB" << endl;
+	//	for (size_t i = 0; i < MCU_height; i++)
+	//	{
+	//		for (size_t j = 0; j < MCU_width; j++)
+	//		{
+	//			cout << setw(3) << RGB[s][i][j] << " ";
+	//		}
+	//		cout << endl;
+	//	}
+	//	cout << endl;
+	//}
 	return RGB;
 }
 
@@ -755,19 +768,19 @@ void JPEG::RGB_to_bmp(void)
 	bi.biClrImportant = 0;
 	bi.biCompression = 0L;
 	NumColors = 0;
-	printf("bi.biWidth is %ld\n", bi.biWidth);
-	printf("bi.biBitCount is %ld\n", bi.biBitCount);
+	//printf("bi.biWidth is %ld\n", bi.biWidth);
+	//printf("bi.biBitCount is %ld\n", bi.biBitCount);
 	LineBytes = (DWORD)WIDTHBYTES(bi.biWidth * bi.biBitCount);
-	printf("LineBytes is %ld\n", LineBytes);
+	//printf("LineBytes is %ld\n", LineBytes);
 	ImgSize = (DWORD)LineBytes * bi.biHeight;//???????
-	printf("size is %ld\n", ImgSize);
+	//printf("size is %ld\n", ImgSize);
 	bf.bfType = 0x4d42;
 	bf.bfSize = sizeof(BITMAPFILEHEADER) + sizeof(BITMAPINFOHEADER)
 		+ NumColors * sizeof(RGBQUAD) + ImgSize;
 	bf.bfOffBits = 54;
 	//(DWORD)(NumColors*sizeof(RGBQUAD)+sizeof(BITMAPFILEHEADER)+sizeof(BITMAPINFOHEADER));
 
-	fout.open("lake.bmp", ios_base::binary);
+	fout.open(filename_ + ".bmp", ios_base::binary);
 	fout.write((LPSTR)&bf, sizeof(BITMAPFILEHEADER));
 	fout.write((LPSTR)&bi, sizeof(BITMAPINFOHEADER));
 
@@ -775,11 +788,11 @@ void JPEG::RGB_to_bmp(void)
 
 	for (int i = ImgHeight - 1; i >= 0; i--)
 	{
-		for (int j = 0; j <  ImgWidth; j++)
+		for (int j = 0; j < ImgWidth; j++)
 		{
 			for (int s = 2; s >= 0; s--)
 			{
-				fout.write((char*)&RGB[s][i][j], 1);
+				fout.write((char*)&RGB_total_after_merge[s][i][j], 1);
 			}
 		}
 	}
@@ -807,32 +820,66 @@ JPEG::array2D JPEG::merge_matrices(vector<array2D> vecar)
 		}
 	}
 
-	cout << "after merge: " << endl;
-	for (size_t i = 0; i < hor_samp_factor * 8; i++)
-	{
-		for (size_t j = 0; j < ver_samp_factor * 8; j++)
-		{
-			cout << setw(3) << ar[i][j] << " ";
-		}
-		cout << endl;
-	}
+	//cout << "after merge: " << endl;
+	//for (size_t i = 0; i < hor_samp_factor * 8; i++)
+	//{
+	//	for (size_t j = 0; j < ver_samp_factor * 8; j++)
+	//	{
+	//		cout << setw(3) << ar[i][j] << " ";
+	//	}
+	//	cout << endl;
+	//}
 	return array2D(ar);
 }
 
 
-BYTE* JPEG::process_sos_data()
+inline int JPEG::get_MCU_number()
 {
-	auto position_start = fin.tellg();
-	fin.seekg(-2, ios_base::end);
-	auto position_end = fin.tellg();
-	int size = position_end - position_start;
-	pf = new BYTE(size);
+	int width = resolution_width / MCU_width;
+	if (resolution_width % MCU_width != 0)
+	{
+		width++;
+	}
 
-	fin.seekg(-size, ios_base::cur);
-	fin.read((char*)pf, size);
+	int height = resolution_height / MCU_height;
+	if (resolution_height % MCU_height != 0)
+	{
+		height++;
+	}
 
-	return pf;
+	MCU_number_width = width;
+	MCU_number_height = height;
+	return width * height;
 }
+
+
+vector<JPEG::array2D> JPEG::merge_RGB(vector<vector<array2D>> RGB_total)
+{
+	vector<array2D> RGB_total_after_merge(3,
+		array2D(MCU_number_height * MCU_height,
+			vector<int>(MCU_number_width * MCU_width)));
+
+	for (int s = 0; s < 3; s++)
+	{
+		for (int m = 0; m < MCU_number_height; m++)
+		{
+			for (int n = 0; n < MCU_number_width; n++)
+			{
+				for (int i = 0; i < MCU_height; i++)
+				{
+					for (int j = 0; j < MCU_width; j++)
+					{
+						RGB_total_after_merge[s][m * MCU_height + i][n * MCU_width + j] 
+							= RGB_total[m * MCU_number_width + n][s][i][j];
+					}
+				}
+			}
+		}
+	}
+
+	return vector<array2D>(RGB_total_after_merge);
+}
+
 
 // main segment parsing function
 int JPEG::DHT()
@@ -866,17 +913,17 @@ int JPEG::DHT()
 	}
 
 	// cout the huffman table and set the format
-	cout << "Huffman table " << hex << setw(2) << setfill('0')
-		<< int(table_id) << ":" << endl;
-	huffData::iterator iter;
-	cout << setfill(' ') << setw(8) << "length" << setw(8) << "code" << setw(8) << "value" << endl;
-	for (iter = huff_table[table_id].begin(); iter != huff_table[table_id].end(); iter++)
-	{
-		cout << setfill(' ') << setw(8) << dec << iter->first.first
-			<< setfill('0') << "    " << hex << setw(4) << iter->first.second
-			<< "    " << setw(2) << int(iter->second)
-			<< endl;
-	}
+	//cout << "Huffman table " << hex << setw(2) << setfill('0')
+	//	<< int(table_id) << ":" << endl;
+	//huffData::iterator iter;
+	//cout << setfill(' ') << setw(8) << "length" << setw(8) << "code" << setw(8) << "value" << endl;
+	//for (iter = huff_table[table_id].begin(); iter != huff_table[table_id].end(); iter++)
+	//{
+	//	cout << setfill(' ') << setw(8) << dec << iter->first.first
+	//		<< setfill('0') << "    " << hex << setw(4) << iter->first.second
+	//		<< "    " << setw(2) << int(iter->second)
+	//		<< endl;
+	//}
 
 	return JPEG_SEG_OK;
 
@@ -982,47 +1029,117 @@ int JPEG::SOS()
 
 	//process_sos_data();
 
-	parseData();
-
-	array2D Y{};
-	array2D Cb{};
-	array2D Cr{};
-
-	// transfer bit_code into original data
-	// Y
-	for (auto i = 0; i < bit_code_Y.size(); i++)
+	cout << dec;
+	// parseData
+	int MCU_size = get_MCU_number();
+	for (size_t MCU_index = 0; MCU_index < MCU_size; MCU_index++)
 	{
-		org_data_Y.push_back(RLE_to_org(bit_code_Y[i]));
 
-		// DC coefficient differential coding
-		if (i > 0)
+		// original data vector
+		vector<vector<int>> org_data_Y{};
+		vector<vector<int>> org_data_Cb{};
+		vector<vector<int>> org_data_Cr{};
+
+
+
+		// data table after zigzag
+		vector<array2D> org_data_zz_Y{};
+		vector<array2D> org_data_zz_Cb{};
+		vector<array2D> org_data_zz_Cr{};
+
+		// data table after IDCT
+		vector<array2D> data_Y{};
+		vector<array2D> data_Cb{};
+		vector<array2D> data_Cr{};
+
+		// final data, 3 tables, Y, Cb, Cr, use a vector to store 3 array2D
+		vector<array2D> MCU = vector<array2D>(3);
+
+		// RGB values
+		vector<array2D> RGB{};
+
+
+
+
+		parseData();
+
+		array2D Y{};
+		array2D Cb{};
+		array2D Cr{};
+
+		// transfer bit_code into original data
+		// Y
+		for (auto i = 0; i < bit_code_Y.size(); i++)
 		{
-			org_data_Y[i][0] += org_data_Y[i - 1][0];
+			org_data_Y.push_back(RLE_to_org(bit_code_Y[i]));
+
+			// DC coefficient differential coding
+			if (i == 0)
+			{
+				org_data_Y[i][0] += Y_dc;
+			}
+			else if (i > 0)
+			{
+				org_data_Y[i][0] += org_data_Y[i - 1][0];
+			}
+			org_data_zz_Y.push_back(array_to_matrix(q_zig_zag(q_quan(org_data_Y[i], 0x00))));
+			data_Y.push_back(IDCT(org_data_zz_Y[i]));
+
 		}
-		org_data_zz_Y.push_back(array_to_matrix(q_zig_zag(q_quan(org_data_Y[i], 0x00))));
-		data_Y.push_back(IDCT(org_data_zz_Y[i]));
+		Y_dc = (org_data_Y.back())[0];
+		bit_code_Y = {};
+		Y = merge_matrices(data_Y);
 
-	}
-	Y = merge_matrices(data_Y);
+		// Cb
+		for (auto i = 0; i < bit_code_Cb.size(); i++)
+		{
+			org_data_Cb.push_back(RLE_to_org(bit_code_Cb[i]));
 
-	// Cb
-	for (auto i = 0; i < bit_code_Cb.size(); i++)
-	{
-		org_data_Cb.push_back(RLE_to_org(bit_code_Cb[i]));
-		org_data_zz_Cb.push_back(array_to_matrix(q_zig_zag(q_quan(org_data_Cb[i], 0x01))));
-		data_Cb.push_back(IDCT(org_data_zz_Cb[i]));
-		Cb = divide_matrix(data_Cb[i]);
+			// DC coefficient differential coding
+			if (i == 0)
+			{
+				org_data_Cb[i][0] += Cb_dc;
+			}
+			else if (i > 0)
+			{
+				org_data_Cb[i][0] += org_data_Cb[i - 1][0];
+			}
+
+			org_data_zz_Cb.push_back(array_to_matrix(q_zig_zag(q_quan(org_data_Cb[i], 0x01))));
+			data_Cb.push_back(IDCT(org_data_zz_Cb[i]));
+			Cb = divide_matrix(data_Cb[i]);
+		}
+		bit_code_Cb = {};
+		Cb_dc = (org_data_Cb.back())[0];
+
+		// Cr
+		for (auto i = 0; i < bit_code_Cr.size(); i++)
+		{
+			org_data_Cr.push_back(RLE_to_org(bit_code_Cr[i]));
+
+			// DC coefficient differential coding
+			if (i == 0)
+			{
+				org_data_Cr[i][0] += Cr_dc;
+			}
+			else if (i > 0)
+			{
+				org_data_Cr[i][0] += org_data_Cr[i - 1][0];
+			}
+
+			org_data_zz_Cr.push_back(array_to_matrix(q_zig_zag(q_quan(org_data_Cr[i], 0x01))));
+			data_Cr.push_back(IDCT(org_data_zz_Cr[i]));
+			Cr = divide_matrix(data_Cr[i]);
+		}
+		bit_code_Cr = {};
+		Cr_dc = (org_data_Cr.back())[0];
+
+		MCU = { Y, Cb, Cr };
+		RGB = YCbCr_to_RGB(MCU);
+		RGB_total.push_back(RGB);
+
+		cout << "\tMCU " << MCU_index << " parsed..." << endl;
 	}
-	// Cr
-	for (auto i = 0; i < bit_code_Cr.size(); i++)
-	{
-		org_data_Cr.push_back(RLE_to_org(bit_code_Cr[i]));
-		org_data_zz_Cr.push_back(array_to_matrix(q_zig_zag(q_quan(org_data_Cr[i], 0x01))));
-		data_Cr.push_back(IDCT(org_data_zz_Cr[i]));
-		Cr = divide_matrix(data_Cr[i]);
-	}
-	MCU = { Y, Cb, Cr };
-	RGB = YCbCr_to_RGB(MCU);
 	//fout.open("sunflower.dat", ios_base::binary);
 
 	//MCU
@@ -1086,6 +1203,7 @@ int JPEG::SOS()
 	//	}
 	//}
 
+	RGB_total_after_merge = merge_RGB(RGB_total);
 	RGB_to_bmp();
 
 	return JPEG_SEG_OK;
@@ -1114,9 +1232,9 @@ int JPEG::DQT()
 	// low 4 bits are the table_id
 	table_id = quanInfo & 0x0F;
 
-	// cout the quantization table information
-	cout << "Quantization table " << int(table_id)
-		<< " (precision " << quanTablePrecision << ")" << ":" << endl;
+	//// cout the quantization table information
+	//cout << "Quantization table " << int(table_id)
+	//	<< " (precision " << quanTablePrecision << ")" << ":" << endl;
 
 	// read quantization array
 	for (size_t i = 0; i < 64; i++)
@@ -1124,15 +1242,15 @@ int JPEG::DQT()
 		quan_table[table_id].push_back(int(fin.get()));
 	}
 
-	for (size_t i = 0; i < 8; i++)
-	{
-		cout << "\t";
-		for (size_t j = 0; j < 8; j++)
-		{
-			cout << quan_table[table_id][8 * i + j] << " ";
-		}
-		cout << endl;
-	}
+	//for (size_t i = 0; i < 8; i++)
+	//{
+	//	cout << "\t";
+	//	for (size_t j = 0; j < 8; j++)
+	//	{
+	//		cout << quan_table[table_id][8 * i + j] << " ";
+	//	}
+	//	cout << endl;
+	//}
 
 	return 0;
 }
@@ -1205,7 +1323,8 @@ JPEG::JPEG(string filename)
 {
 	// Open the requested file, keep parsing blocks until we run
 	// out of file, then close it.
-	fin.open(filename.c_str(), ios_base::binary);
+	filename_ = filename;
+	fin.open(filename + ".jpg", ios_base::binary);
 	if (!fin.is_open())
 	{
 		cerr << "File doesn't exit";
